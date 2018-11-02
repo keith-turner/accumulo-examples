@@ -24,10 +24,13 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.IteratorSetting;
 import org.apache.accumulo.core.client.MutationsRejectedException;
+import org.apache.accumulo.core.client.TableExistsException;
+import org.apache.accumulo.core.client.admin.NewTableConfiguration;
 import org.apache.accumulo.core.data.ArrayByteSequence;
 import org.apache.accumulo.core.data.ByteSequence;
 import org.apache.accumulo.core.data.Mutation;
@@ -193,18 +196,22 @@ public class FileDataIngest {
     BatchWriterOpts bwOpts = new BatchWriterOpts();
     opts.parseArgs(FileDataIngest.class.getName(), args, bwOpts);
 
-    AccumuloClient client = opts.getAccumuloClient();
-    if (!client.tableOperations().exists(opts.getTableName())) {
-      client.tableOperations().create(opts.getTableName());
-      client.tableOperations().attachIterator(opts.getTableName(),
-          new IteratorSetting(1, ChunkCombiner.class));
+    try (AccumuloClient client = Accumulo.newClient().usingClientInfo(opts.getClientInfo())
+        .build()) {
+      try {
+        client.tableOperations().create(opts.getTableName(), new NewTableConfiguration()
+            .attachIterator(new IteratorSetting(1, ChunkCombiner.class)));
+      } catch (TableExistsException e) {
+        // ignore
+      }
+      try (BatchWriter bw = client.createBatchWriter(opts.getTableName(),
+          bwOpts.getBatchWriterConfig())) {
+        FileDataIngest fdi = new FileDataIngest(opts.chunkSize, opts.visibility);
+        for (String filename : opts.files) {
+          fdi.insertFileData(filename, bw);
+        }
+      }
     }
-    BatchWriter bw = client.createBatchWriter(opts.getTableName(), bwOpts.getBatchWriterConfig());
-    FileDataIngest fdi = new FileDataIngest(opts.chunkSize, opts.visibility);
-    for (String filename : opts.files) {
-      fdi.insertFileData(filename, bw);
-    }
-    bw.close();
     // TODO
     // opts.stopTracing();
   }

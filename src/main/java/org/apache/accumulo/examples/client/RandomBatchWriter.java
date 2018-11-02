@@ -22,6 +22,7 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
 
+import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
@@ -141,23 +142,24 @@ public class RandomBatchWriter {
     else {
       r = new Random(opts.seed);
     }
-    AccumuloClient client = opts.getAccumuloClient();
-    BatchWriter bw = client.createBatchWriter(opts.getTableName(), bwOpts.getBatchWriterConfig());
 
-    // reuse the ColumnVisibility object to improve performance
-    ColumnVisibility cv = opts.visiblity;
+    try (AccumuloClient client = Accumulo.newClient().usingClientInfo(opts.getClientInfo()).build();
+        BatchWriter bw = client.createBatchWriter(opts.getTableName(),
+            bwOpts.getBatchWriterConfig())) {
 
-    // Generate num unique row ids in the given range
-    HashSet<Long> rowids = new HashSet<>(opts.num);
-    while (rowids.size() < opts.num) {
-      rowids.add((abs(r.nextLong()) % (opts.max - opts.min)) + opts.min);
-    }
-    for (long rowid : rowids) {
-      Mutation m = createMutation(rowid, opts.size, cv);
-      bw.addMutation(m);
-    }
+      // reuse the ColumnVisibility object to improve performance
+      ColumnVisibility cv = opts.visiblity;
 
-    try {
+      // Generate num unique row ids in the given range
+      HashSet<Long> rowids = new HashSet<>(opts.num);
+      while (rowids.size() < opts.num) {
+        rowids.add((abs(r.nextLong()) % (opts.max - opts.min)) + opts.min);
+      }
+      for (long rowid : rowids) {
+        Mutation m = createMutation(rowid, opts.size, cv);
+        bw.addMutation(m);
+      }
+
       bw.close();
     } catch (MutationsRejectedException e) {
       if (e.getSecurityErrorCodes().size() > 0) {

@@ -49,36 +49,37 @@ public class ReadWriteExample {
     Opts opts = new Opts();
     opts.parseArgs(ReadWriteExample.class.getName(), args);
 
-    AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
+    try (AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build()) {
 
-    try {
-      client.namespaceOperations().create(namespace);
-    } catch (NamespaceExistsException e) {
-      // ignore
-    }
-    try {
-      client.tableOperations().create(table);
-    } catch (TableExistsException e) {
-      // ignore
-    }
-
-    // write data
-    try (BatchWriter writer = client.createBatchWriter(table)) {
-      for (int i = 0; i < 10; i++) {
-        Mutation m = new Mutation("hello" + i);
-        m.put("cf", "cq", new Value("world" + i));
-        writer.addMutation(m);
+      try {
+        client.namespaceOperations().create(namespace);
+      } catch (NamespaceExistsException e) {
+        // ignore
       }
-    }
-
-    // read data
-    try (Scanner scanner = client.createScanner(table, Authorizations.EMPTY)) {
-      for (Entry<Key,Value> entry : scanner) {
-        log.info(entry.getKey().toString() + " -> " + entry.getValue().toString());
+      try {
+        client.tableOperations().create(table);
+      } catch (TableExistsException e) {
+        // ignore
       }
-    }
 
-    // delete table
-    client.tableOperations().delete(table);
+      // write data
+      try (BatchWriter writer = client.createBatchWriter(table)) {
+        for (int i = 0; i < 10; i++) {
+          Mutation m = new Mutation("hello" + i);
+          m.put("cf", "cq", new Value("world" + i));
+          writer.addMutation(m);
+        }
+      }
+
+      // read data
+      try (Scanner scanner = client.createScanner(table, Authorizations.EMPTY)) {
+        for (Entry<Key,Value> entry : scanner) {
+          log.info(entry.getKey().toString() + " -> " + entry.getValue().toString());
+        }
+      }
+
+      // delete table
+      client.tableOperations().delete(table);
+    }
   }
 }

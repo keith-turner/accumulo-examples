@@ -59,72 +59,73 @@ public class RandomBatchScanner {
     Opts opts = new Opts();
     opts.parseArgs(RandomBatchScanner.class.getName(), args);
 
-    AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
-    try {
-      client.tableOperations().create("batch");
-    } catch (TableExistsException e) {
-      // ignore
-    }
+    try (AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build()) {
+      try {
+        client.tableOperations().create("batch");
+      } catch (TableExistsException e) {
+        // ignore
+      }
 
-    int totalLookups = 1000;
-    int totalEntries = 10000;
-    Random r = new Random();
-    HashSet<Range> ranges = new HashSet<>();
-    HashMap<String,Boolean> expectedRows = new HashMap<>();
-    log.info("Generating {} random ranges for BatchScanner to read", totalLookups);
-    while (ranges.size() < totalLookups) {
-      long rowId = abs(r.nextLong()) % totalEntries;
-      String row = String.format("row_%010d", rowId);
-      ranges.add(new Range(row));
-      expectedRows.put(row, false);
-    }
+      int totalLookups = 1000;
+      int totalEntries = 10000;
+      Random r = new Random();
+      HashSet<Range> ranges = new HashSet<>();
+      HashMap<String,Boolean> expectedRows = new HashMap<>();
+      log.info("Generating {} random ranges for BatchScanner to read", totalLookups);
+      while (ranges.size() < totalLookups) {
+        long rowId = abs(r.nextLong()) % totalEntries;
+        String row = String.format("row_%010d", rowId);
+        ranges.add(new Range(row));
+        expectedRows.put(row, false);
+      }
 
-    long t1 = System.currentTimeMillis();
-    long lookups = 0;
+      long t1 = System.currentTimeMillis();
+      long lookups = 0;
 
-    log.info("Reading ranges using BatchScanner");
-    try (BatchScanner scan = client.createBatchScanner("batch", Authorizations.EMPTY, 20)) {
-      scan.setRanges(ranges);
-      for (Entry<Key,Value> entry : scan) {
-        Key key = entry.getKey();
-        Value value = entry.getValue();
-        String row = key.getRow().toString();
-        long rowId = Integer.parseInt(row.split("_")[1]);
+      log.info("Reading ranges using BatchScanner");
+      try (BatchScanner scan = client.createBatchScanner("batch", Authorizations.EMPTY, 20)) {
+        scan.setRanges(ranges);
+        for (Entry<Key,Value> entry : scan) {
+          Key key = entry.getKey();
+          Value value = entry.getValue();
+          String row = key.getRow().toString();
+          long rowId = Integer.parseInt(row.split("_")[1]);
 
-        Value expectedValue = SequentialBatchWriter.createValue(rowId);
+          Value expectedValue = SequentialBatchWriter.createValue(rowId);
 
-        if (!Arrays.equals(expectedValue.get(), value.get())) {
-          log.error("Unexpected value for key: {} expected: {} actual: {}", key,
-              new String(expectedValue.get(), UTF_8), new String(value.get(), UTF_8));
-        }
+          if (!Arrays.equals(expectedValue.get(), value.get())) {
+            log.error("Unexpected value for key: {} expected: {} actual: {}", key,
+                new String(expectedValue.get(), UTF_8), new String(value.get(), UTF_8));
+          }
 
-        if (!expectedRows.containsKey(key.getRow().toString())) {
-          log.error("Encountered unexpected key: {} ", key);
-        } else {
-          expectedRows.put(key.getRow().toString(), true);
-        }
+          if (!expectedRows.containsKey(key.getRow().toString())) {
+            log.error("Encountered unexpected key: {} ", key);
+          } else {
+            expectedRows.put(key.getRow().toString(), true);
+          }
 
-        lookups++;
-        if (lookups % 100 == 0) {
-          log.trace("{} lookups", lookups);
+          lookups++;
+          if (lookups % 100 == 0) {
+            log.trace("{} lookups", lookups);
+          }
         }
       }
-    }
 
-    long t2 = System.currentTimeMillis();
-    log.info(String.format("Scan finished! %6.2f lookups/sec, %.2f secs, %d results",
-        lookups / ((t2 - t1) / 1000.0), ((t2 - t1) / 1000.0), lookups));
+      long t2 = System.currentTimeMillis();
+      log.info(String.format("Scan finished! %6.2f lookups/sec, %.2f secs, %d results",
+          lookups / ((t2 - t1) / 1000.0), ((t2 - t1) / 1000.0), lookups));
 
-    int count = 0;
-    for (Entry<String,Boolean> entry : expectedRows.entrySet()) {
-      if (!entry.getValue()) {
-        count++;
+      int count = 0;
+      for (Entry<String,Boolean> entry : expectedRows.entrySet()) {
+        if (!entry.getValue()) {
+          count++;
+        }
       }
+      if (count > 0) {
+        log.warn("Did not find {} rows", count);
+        System.exit(1);
+      }
+      log.info("All expected rows were scanned");
     }
-    if (count > 0) {
-      log.warn("Did not find {} rows", count);
-      System.exit(1);
-    }
-    log.info("All expected rows were scanned");
   }
 }

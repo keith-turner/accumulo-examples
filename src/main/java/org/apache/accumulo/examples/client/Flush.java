@@ -16,6 +16,7 @@
  */
 package org.apache.accumulo.examples.client;
 
+import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.examples.cli.ClientOnRequiredTable;
 
@@ -27,8 +28,8 @@ public class Flush {
   public static void main(String[] args) {
     ClientOnRequiredTable opts = new ClientOnRequiredTable();
     opts.parseArgs(Flush.class.getName(), args);
-    try {
-      AccumuloClient client = opts.getAccumuloClient();
+    try (AccumuloClient client = Accumulo.newClient().usingClientInfo(opts.getClientInfo())
+        .build()) {
       client.tableOperations().flush(opts.getTableName(), null, null, true);
     } catch (Exception e) {
       throw new RuntimeException(e);

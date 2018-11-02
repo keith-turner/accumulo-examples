@@ -69,21 +69,22 @@ public class SequentialBatchWriter {
     Opts opts = new Opts();
     opts.parseArgs(SequentialBatchWriter.class.getName(), args);
 
-    AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
-    try {
-      client.tableOperations().create("batch");
-    } catch (TableExistsException e) {
-      // ignore
-    }
+    try (AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build()) {
+      try {
+        client.tableOperations().create("batch");
+      } catch (TableExistsException e) {
+        // ignore
+      }
 
-    try (BatchWriter bw = client.createBatchWriter("batch")) {
-      for (int i = 0; i < 10000; i++) {
-        Mutation m = new Mutation(String.format("row_%010d", i));
-        // create a random value that is a function of row id for verification purposes
-        m.put("foo", "1", createValue(i));
-        bw.addMutation(m);
-        if (i % 1000 == 0) {
-          log.trace("wrote {} entries", i);
+      try (BatchWriter bw = client.createBatchWriter("batch")) {
+        for (int i = 0; i < 10000; i++) {
+          Mutation m = new Mutation(String.format("row_%010d", i));
+          // create a random value that is a function of row id for verification purposes
+          m.put("foo", "1", createValue(i));
+          bw.addMutation(m);
+          if (i % 1000 == 0) {
+            log.trace("wrote {} entries", i);
+          }
         }
       }
     }

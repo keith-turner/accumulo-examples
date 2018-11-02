@@ -19,6 +19,7 @@ package org.apache.accumulo.examples.dirlist;
 import java.util.Iterator;
 import java.util.Map.Entry;
 
+import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.BatchWriter;
 import org.apache.accumulo.core.client.Scanner;
@@ -300,8 +301,11 @@ public class FileCount {
     String programName = FileCount.class.getName();
     opts.parseArgs(programName, args, scanOpts, bwOpts);
 
-    FileCount fileCount = new FileCount(opts.getAccumuloClient(), opts.getTableName(), opts.auths,
-        opts.visibility, scanOpts, bwOpts);
-    fileCount.run();
+    try (AccumuloClient client = Accumulo.newClient().usingClientInfo(opts.getClientInfo())
+        .build()) {
+      FileCount fileCount = new FileCount(client, opts.getTableName(), opts.auths, opts.visibility,
+          scanOpts, bwOpts);
+      fileCount.run();
+    }
   }
 }

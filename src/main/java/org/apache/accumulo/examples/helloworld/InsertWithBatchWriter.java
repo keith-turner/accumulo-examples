@@ -48,24 +48,25 @@ public class InsertWithBatchWriter {
     Opts opts = new Opts();
     opts.parseArgs(InsertWithBatchWriter.class.getName(), args);
 
-    AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
-    try {
-      client.tableOperations().create("hellotable");
-    } catch (TableExistsException e) {
-      // ignore
-    }
+    try (AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build()) {
+      try {
+        client.tableOperations().create("hellotable");
+      } catch (TableExistsException e) {
+        // ignore
+      }
 
-    try (BatchWriter bw = client.createBatchWriter("hellotable")) {
-      log.trace("writing ...");
-      for (int i = 0; i < 10000; i++) {
-        Mutation m = new Mutation(String.format("row_%d", i));
-        for (int j = 0; j < 5; j++) {
-          m.put("colfam", String.format("colqual_%d", j),
-              new Value((String.format("value_%d_%d", i, j)).getBytes()));
-        }
-        bw.addMutation(m);
-        if (i % 100 == 0) {
-          log.trace(String.valueOf(i));
+      try (BatchWriter bw = client.createBatchWriter("hellotable")) {
+        log.trace("writing ...");
+        for (int i = 0; i < 10000; i++) {
+          Mutation m = new Mutation(String.format("row_%d", i));
+          for (int j = 0; j < 5; j++) {
+            m.put("colfam", String.format("colqual_%d", j),
+                new Value((String.format("value_%d_%d", i, j)).getBytes()));
+          }
+          bw.addMutation(m);
+          if (i % 100 == 0) {
+            log.trace(String.valueOf(i));
+          }
         }
       }
     }

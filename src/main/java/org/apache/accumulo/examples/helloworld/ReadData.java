@@ -51,14 +51,15 @@ public class ReadData {
     Opts opts = new Opts();
     opts.parseArgs(ReadData.class.getName(), args);
 
-    AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
+    try (AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build()) {
 
-    try (Scanner scan = client.createScanner("hellotable", Authorizations.EMPTY)) {
-      scan.setRange(new Range(new Key("row_0"), new Key("row_1002")));
-      for (Entry<Key,Value> e : scan) {
-        Key key = e.getKey();
-        log.trace(key.getRow() + " " + key.getColumnFamily() + " " + key.getColumnQualifier() + " "
-            + e.getValue());
+      try (Scanner scan = client.createScanner("hellotable", Authorizations.EMPTY)) {
+        scan.setRange(new Range(new Key("row_0"), new Key("row_1002")));
+        for (Entry<Key,Value> e : scan) {
+          Key key = e.getKey();
+          log.trace(key.getRow() + " " + key.getColumnFamily() + " " + key.getColumnQualifier()
+              + " " + e.getValue());
+        }
       }
     }
   }

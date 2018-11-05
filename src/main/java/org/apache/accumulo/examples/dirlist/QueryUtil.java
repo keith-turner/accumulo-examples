@@ -53,7 +53,7 @@ public class QueryUtil {
 
   public QueryUtil(AccumuloClient client, Opts opts)
       throws AccumuloException, AccumuloSecurityException {
-    client = client;
+    this.client = client;
     this.tableName = opts.getTableName();
     this.auths = opts.auths;
   }

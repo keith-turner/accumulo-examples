@@ -16,6 +16,7 @@
  */
 package org.apache.accumulo.examples.client;
 
+import org.apache.accumulo.core.client.Accumulo;
 import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
@@ -50,14 +51,13 @@ public class TraceDumpExample {
     public String traceId = "";
   }
 
-  public void dump(Opts opts)
+  public void dump(AccumuloClient client, Opts opts)
       throws TableNotFoundException, AccumuloException, AccumuloSecurityException {
 
     if (opts.traceId.isEmpty()) {
       throw new IllegalArgumentException("--traceid option is required");
     }
 
-    final AccumuloClient client = opts.getAccumuloClient();
     final String principal = opts.getPrincipal();
     final String table = opts.getTableName();
     if (!client.securityOperations().hasTablePermission(principal, table, TablePermission.READ)) {
@@ -96,7 +96,10 @@ public class TraceDumpExample {
     ScannerOpts scannerOpts = new ScannerOpts();
     opts.parseArgs(TraceDumpExample.class.getName(), args, scannerOpts);
 
-    traceDumpExample.dump(opts);
+    try (AccumuloClient client = Accumulo.newClient().usingClientInfo(opts.getClientInfo())
+        .build()) {
+      traceDumpExample.dump(client, opts);
+    }
   }
 
 }

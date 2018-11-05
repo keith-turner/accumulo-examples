@@ -21,6 +21,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.Map.Entry;
 
+import org.apache.accumulo.core.client.Accumulo;
+import org.apache.accumulo.core.client.AccumuloClient;
 import org.apache.accumulo.core.client.AccumuloException;
 import org.apache.accumulo.core.client.AccumuloSecurityException;
 import org.apache.accumulo.core.client.BatchWriter;
@@ -71,27 +73,27 @@ public class TracingExample {
     DistributedTrace.enable("myHost", "myApp");
   }
 
-  public void execute(Opts opts) throws TableNotFoundException, InterruptedException,
-      AccumuloException, AccumuloSecurityException, TableExistsException {
+  public void execute(AccumuloClient client, Opts opts) throws TableNotFoundException,
+      InterruptedException, AccumuloException, AccumuloSecurityException, TableExistsException {
 
     if (opts.createtable) {
-      opts.getAccumuloClient().tableOperations().create(opts.getTableName());
+      client.tableOperations().create(opts.getTableName());
     }
 
     if (opts.createEntries) {
-      createEntries(opts);
+      createEntries(client, opts);
     }
 
     if (opts.readEntries) {
-      readEntries(opts);
+      readEntries(client, opts);
     }
 
     if (opts.deletetable) {
-      opts.getAccumuloClient().tableOperations().delete(opts.getTableName());
+      client.tableOperations().delete(opts.getTableName());
     }
   }
 
-  private void createEntries(Opts opts)
+  private void createEntries(AccumuloClient client, Opts opts)
       throws TableNotFoundException, AccumuloException, AccumuloSecurityException {
 
     // Trace the write operation. Note, unless you flush the BatchWriter, you will not capture
@@ -101,7 +103,7 @@ public class TracingExample {
     TraceScope scope = Trace.startSpan("Client Write", Sampler.ALWAYS);
 
     System.out.println("TraceID: " + Long.toHexString(scope.getSpan().getTraceId()));
-    BatchWriter batchWriter = opts.getAccumuloClient().createBatchWriter(opts.getTableName(),
+    BatchWriter batchWriter = client.createBatchWriter(opts.getTableName(),
         new BatchWriterConfig());
 
     Mutation m = new Mutation("row");
@@ -116,10 +118,10 @@ public class TracingExample {
     scope.close();
   }
 
-  private void readEntries(Opts opts)
+  private void readEntries(AccumuloClient client, Opts opts)
       throws TableNotFoundException, AccumuloException, AccumuloSecurityException {
 
-    Scanner scanner = opts.getAccumuloClient().createScanner(opts.getTableName(), opts.auths);
+    Scanner scanner = client.createScanner(opts.getTableName(), opts.auths);
 
     // Trace the read operation.
     TraceScope readScope = Trace.startSpan("Client Read", Sampler.ALWAYS);
@@ -145,8 +147,11 @@ public class TracingExample {
       ScannerOpts scannerOpts = new ScannerOpts();
       opts.parseArgs(TracingExample.class.getName(), args, scannerOpts);
 
-      tracingExample.enableTracing(opts);
-      tracingExample.execute(opts);
+      try (AccumuloClient client = Accumulo.newClient().usingClientInfo(opts.getClientInfo())
+          .build()) {
+        tracingExample.enableTracing(opts);
+        tracingExample.execute(client, opts);
+      }
     } catch (Exception e) {
       log.error("Caught exception running TraceExample", e);
       System.exit(1);

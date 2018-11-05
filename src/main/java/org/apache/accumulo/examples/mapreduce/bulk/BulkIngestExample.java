@@ -148,14 +148,11 @@ public class BulkIngestExample extends Configured implements Tool {
       RangePartitioner.setSplitFile(job, workDir + "/splits.txt");
 
       job.waitForCompletion(true);
-      Path failures = new Path(workDir, "failures");
-      fs.delete(failures, true);
-      fs.mkdirs(new Path(workDir, "failures"));
+
       // With HDFS permissions on, we need to make sure the Accumulo user can read/move the rfiles
       FsShell fsShell = new FsShell(conf);
       fsShell.run(new String[] {"-chmod", "-R", "777", workDir});
-      client.tableOperations().importDirectory(SetupTable.tableName, workDir + "/files",
-          workDir + "/failures", false);
+      client.tableOperations().importDirectory(workDir + "/files").to(SetupTable.tableName).load();
 
     } catch (Exception e) {
       throw new RuntimeException(e);

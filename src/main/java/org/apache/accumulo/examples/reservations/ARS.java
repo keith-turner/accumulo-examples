@@ -299,6 +299,8 @@ public class ARS {
             reader.println("  Wait list : " + reservations.subList(1, reservations.size()));
         }
       } else if (tokens[0].equals("quit") && tokens.length == 1) {
+        if (ars != null)
+          ars.client.close();
         break;
       } else if (tokens[0].equals("connect") && tokens.length == 6 && ars == null) {
         AccumuloClient client = Accumulo.newClient().forInstance(tokens[1], tokens[2])

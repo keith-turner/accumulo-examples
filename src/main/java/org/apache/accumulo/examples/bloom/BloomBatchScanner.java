@@ -41,11 +41,12 @@ public class BloomBatchScanner {
 
   public static void main(String[] args)
       throws AccumuloException, AccumuloSecurityException, TableNotFoundException {
-    AccumuloClient client = Accumulo.newClient().usingProperties("conf/accumulo-client.properties")
-        .build();
+    try (AccumuloClient client = Accumulo.newClient()
+        .usingProperties("conf/accumulo-client.properties").build()) {
 
-    scan(client, "bloom_test1", 7);
-    scan(client, "bloom_test2", 7);
+      scan(client, "bloom_test1", 7);
+      scan(client, "bloom_test2", 7);
+    }
   }
 
   static void scan(AccumuloClient client, String tableName, int seed)

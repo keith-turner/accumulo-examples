@@ -54,9 +54,8 @@ public class Reverse {
     Opts opts = new Opts();
     opts.parseArgs(Reverse.class.getName(), args);
 
-    AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
-
-    try (Scanner scanner = client.createScanner(opts.shardTable, Authorizations.EMPTY);
+    try (AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
+        Scanner scanner = client.createScanner(opts.shardTable, Authorizations.EMPTY);
         BatchWriter bw = client.createBatchWriter(opts.doc2TermTable)) {
       for (Entry<Key,Value> entry : scanner) {
         Key key = entry.getKey();

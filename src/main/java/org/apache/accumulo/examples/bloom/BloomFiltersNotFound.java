@@ -29,22 +29,23 @@ public class BloomFiltersNotFound {
 
   public static void main(String[] args)
       throws AccumuloException, AccumuloSecurityException, TableNotFoundException {
-    AccumuloClient client = Accumulo.newClient().usingProperties("conf/accumulo-client.properties")
-        .build();
-    try {
-      client.tableOperations().create("bloom_test3");
-      client.tableOperations().create("bloom_test4");
-      client.tableOperations().setProperty("bloom_test4", "table.bloom.enabled", "true");
-    } catch (TableExistsException e) {
-      // ignore
-    }
-    System.out.println("Writing data to bloom_test3 and bloom_test4 (bloom filters enabled)");
-    writeData(client, "bloom_test3", 7);
-    client.tableOperations().flush("bloom_test3", null, null, true);
-    writeData(client, "bloom_test4", 7);
-    client.tableOperations().flush("bloom_test4", null, null, true);
+    try (AccumuloClient client = Accumulo.newClient()
+        .usingProperties("conf/accumulo-client.properties").build()) {
+      try {
+        client.tableOperations().create("bloom_test3");
+        client.tableOperations().create("bloom_test4");
+        client.tableOperations().setProperty("bloom_test4", "table.bloom.enabled", "true");
+      } catch (TableExistsException e) {
+        // ignore
+      }
+      System.out.println("Writing data to bloom_test3 and bloom_test4 (bloom filters enabled)");
+      writeData(client, "bloom_test3", 7);
+      client.tableOperations().flush("bloom_test3", null, null, true);
+      writeData(client, "bloom_test4", 7);
+      client.tableOperations().flush("bloom_test4", null, null, true);
 
-    BloomBatchScanner.scan(client, "bloom_test3", 8);
-    BloomBatchScanner.scan(client, "bloom_test4", 8);
+      BloomBatchScanner.scan(client, "bloom_test3", 8);
+      BloomBatchScanner.scan(client, "bloom_test4", 8);
+    }
   }
 }

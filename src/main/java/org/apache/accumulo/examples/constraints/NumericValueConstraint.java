@@ -80,32 +80,32 @@ public class NumericValueConstraint implements Constraint {
 
   public static void main(String[] args)
       throws AccumuloException, AccumuloSecurityException, TableNotFoundException {
-    AccumuloClient client = Accumulo.newClient().usingProperties("conf/accumulo-client.properties")
-        .build();
-    try {
-      client.tableOperations().create("testConstraints");
-    } catch (TableExistsException e) {
-      // ignore
+    try (AccumuloClient client = Accumulo.newClient()
+        .usingProperties("conf/accumulo-client.properties").build()) {
+      try {
+        client.tableOperations().create("testConstraints");
+      } catch (TableExistsException e) {
+        // ignore
+      }
+
+      /**
+       * Add the {@link NumericValueConstraint} constraint to the table. Be sure to use the fully
+       * qualified class name
+       */
+      int num = client.tableOperations().addConstraint("testConstraints",
+          "org.apache.accumulo.examples.constraints.NumericValueConstraint");
+
+      System.out.println("Attempting to write non numeric data to testConstraints");
+      try (BatchWriter bw = client.createBatchWriter("testConstraints")) {
+        Mutation m = new Mutation("r1");
+        m.put("cf1", "cq1", new Value(("value1--$$@@%%").getBytes()));
+        bw.addMutation(m);
+      } catch (MutationsRejectedException e) {
+        e.getConstraintViolationSummaries()
+            .forEach(m -> System.out.println("Constraint violated: " + m.constrainClass));
+      }
+
+      client.tableOperations().removeConstraint("testConstraints", num);
     }
-
-    /**
-     * Add the {@link NumericValueConstraint} constraint to the table. Be sure to use the fully
-     * qualified class name
-     */
-    int num = client.tableOperations().addConstraint("testConstraints",
-        "org.apache.accumulo.examples.constraints.NumericValueConstraint");
-
-    System.out.println("Attempting to write non numeric data to testConstraints");
-    try (BatchWriter bw = client.createBatchWriter("testConstraints")) {
-      Mutation m = new Mutation("r1");
-      m.put("cf1", "cq1", new Value(("value1--$$@@%%").getBytes()));
-      bw.addMutation(m);
-    } catch (MutationsRejectedException e) {
-      e.getConstraintViolationSummaries()
-          .forEach(m -> System.out.println("Constraint violated: " + m.constrainClass));
-    }
-
-    client.tableOperations().removeConstraint("testConstraints", num);
   }
-
 }

@@ -96,6 +96,8 @@ public class Index {
   }
 
   static class IndexOpts extends Help {
+    @Parameter(names = "-c", description = "Accumulo client properties file")
+    String clientProps = "conf/accumulo-client.properties";
 
     @Parameter(names = {"-t", "--table"}, required = true, description = "table to use")
     private String tableName;
@@ -114,10 +116,8 @@ public class Index {
 
     String splitRegex = "\\W+";
 
-    AccumuloClient client = Accumulo.newClient().usingProperties("conf/accumulo-client.properties")
-        .build();
-
-    try (BatchWriter bw = client.createBatchWriter(opts.tableName)) {
+    try (AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
+        BatchWriter bw = client.createBatchWriter(opts.tableName)) {
       for (String filename : opts.files) {
         index(opts.partitions, new File(filename), splitRegex, bw);
       }

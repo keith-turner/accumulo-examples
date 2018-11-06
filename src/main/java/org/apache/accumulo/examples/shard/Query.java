@@ -43,6 +43,8 @@ import com.beust.jcommander.Parameter;
 public class Query {
 
   static class QueryOpts extends Help {
+    @Parameter(names = "-c", description = "Accumulo client properties file")
+    String clientProps = "conf/accumulo-client.properties";
 
     @Parameter(description = " term { <term> ... }")
     List<String> terms = new ArrayList<>();
@@ -90,10 +92,8 @@ public class Query {
     QueryOpts opts = new QueryOpts();
     opts.parseArgs(Query.class.getName(), args);
 
-    AccumuloClient client = Accumulo.newClient().usingProperties("conf/accumulo-client.properties")
-        .build();
-
-    try (BatchScanner bs = client.createBatchScanner(opts.tableName, Authorizations.EMPTY, 10)) {
+    try (AccumuloClient client = Accumulo.newClient().usingProperties(opts.clientProps).build();
+        BatchScanner bs = client.createBatchScanner(opts.tableName, Authorizations.EMPTY, 10)) {
       if (opts.useSample) {
         SamplerConfiguration samplerConfig = client.tableOperations()
             .getSamplerConfiguration(opts.tableName);

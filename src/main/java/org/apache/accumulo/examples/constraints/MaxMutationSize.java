@@ -53,33 +53,34 @@ public class MaxMutationSize implements Constraint {
 
   public static void main(String[] args)
       throws AccumuloException, AccumuloSecurityException, TableNotFoundException {
-    AccumuloClient client = Accumulo.newClient().usingProperties("conf/accumulo-client.properties")
-        .build();
-    try {
-      client.tableOperations().create("testConstraints");
-    } catch (TableExistsException e) {
-      // ignore
+    try (AccumuloClient client = Accumulo.newClient()
+        .usingProperties("conf/accumulo-client.properties").build()) {
+      try {
+        client.tableOperations().create("testConstraints");
+      } catch (TableExistsException e) {
+        // ignore
+      }
+
+      /**
+       * Add the {@link MaxMutationSize} constraint to the table. Be sure to use the fully qualified
+       * class name
+       */
+      int num = client.tableOperations().addConstraint("testConstraints",
+          "org.apache.accumulo.examples.constraints.MaxMutationSize");
+
+      System.out.println("Attempting to write a lot of mutations to testConstraints");
+      try (BatchWriter bw = client.createBatchWriter("testConstraints")) {
+        Mutation m = new Mutation("r1");
+        for (int i = 0; i < 1_000_000; i++)
+          m.put("cf" + i % 5000, "cq" + i, new Value(("value" + i).getBytes()));
+        bw.addMutation(m);
+      } catch (MutationsRejectedException e) {
+        e.getConstraintViolationSummaries()
+            .forEach(m -> System.out.println("Constraint violated: " + m.constrainClass));
+      }
+
+      client.tableOperations().removeConstraint("testConstraints", num);
     }
-
-    /**
-     * Add the {@link MaxMutationSize} constraint to the table. Be sure to use the fully qualified
-     * class name
-     */
-    int num = client.tableOperations().addConstraint("testConstraints",
-        "org.apache.accumulo.examples.constraints.MaxMutationSize");
-
-    System.out.println("Attempting to write a lot of mutations to testConstraints");
-    try (BatchWriter bw = client.createBatchWriter("testConstraints")) {
-      Mutation m = new Mutation("r1");
-      for (int i = 0; i < 1_000_000; i++)
-        m.put("cf" + i % 5000, "cq" + i, new Value(("value" + i).getBytes()));
-      bw.addMutation(m);
-    } catch (MutationsRejectedException e) {
-      e.getConstraintViolationSummaries()
-          .forEach(m -> System.out.println("Constraint violated: " + m.constrainClass));
-    }
-
-    client.tableOperations().removeConstraint("testConstraints", num);
   }
 
 }
